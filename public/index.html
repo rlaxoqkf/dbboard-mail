@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<link rel="manifest" href="manifest.json" />
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DB Digital Dashboard</title>
+<link rel="stylesheet" href="./css/common.css">
+
+    <!-- update the version number as needed -->
+    <script defer src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
+    <!-- include only the Firebase features as you need -->
+    <script defer src="/__/firebase/10.12.2/firebase-auth-compat.js"></script>
+    <!-- 
+      initialize the SDK after all desired features are loaded, set useEmulator to false
+      to avoid connecting the SDK to running emulators.
+    -->
+    <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+
+</head>
+<body>
+<div id="wrap">
+	<main id="container" class="container">
+		<div class="intro">
+			<a href="#">
+				<div class="login">
+					<h1 class="tit">DB<br>Digital<br>Dashboard</h1>
+					<span id="login" class="btn_login">Loading...</span>
+				</div>
+			</a>
+		</div>
+	</main>
+</div>
+
+
+<script>
+	document.addEventListener('DOMContentLoaded', function() {
+	  const emailVaildRegExp = /.*.db(fis|inc|group).co.kr$/i;
+	  firebase.auth().onAuthStateChanged(user => {
+		if (user) {
+		  // User is signed in, see docs for a list of available properties
+		  // https://firebase.google.com/docs/reference/js/auth.user
+
+		  if (!user.email.match(emailVaildRegExp)){
+			alert('DB 관련 구글 메일로만 로그인이 가능합니다.');
+		  } else {
+			signIn();
+		  }
+		  //writeDeptStat('1000', 'OK', user.email, user.displayName, uid, 'TEST OK!!');
+		  // ...
+		}
+		document.getElementById('login').innerText = 'Google 로그인';
+	  });
+
+	  document.getElementById('login').addEventListener('click', () => {
+		document.getElementById('login').innerText = 'Loading...';
+		firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
+			const provider = new firebase.auth.GoogleAuthProvider();
+			provider.addScope('https://www.googleapis.com/auth/gmail.send');
+			firebase.auth().signInWithPopup(provider).then((result) => {
+				//const user = result.user;
+				var token = result.credential.accessToken;
+				localStorage.setItem('gmailAccessToken', token);
+				signIn();
+			}).catch((error) => {
+				console.error(error);
+			});
+		}).catch((error) => {
+			 console.error(error);
+		});
+		document.getElementById('login').innerText = 'Google 로그인';
+	  });
+	});
+
+	function signIn(){
+		window.location.href = 'dashboard.html';
+	}
+  </script>
+
+</body>
+</html>

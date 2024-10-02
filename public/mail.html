@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <link rel="manifest" href="manifest.json" />
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Send</title>
+    <link rel="stylesheet" href="./css/common.css">
+    
+    <script defer src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
+    <script defer src="/__/firebase/10.12.2/firebase-auth-compat.js"></script>
+    <script defer src="/__/firebase/10.12.2/firebase-database-compat.js"></script>
+    <script defer src="/__/firebase/10.12.2/firebase-analytics-compat.js"></script>
+    <script defer src="/__/firebase/10.12.2/firebase-messaging-compat.js"></script>
+    <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+
+    <style>
+        /* 모달, 체크박스 스타일 지정 */
+        .modal {
+            display: none; 
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4); 
+        }
+
+        .modal-content p {
+            font-size: 1.6rem; 
+            line-height: 2.0; 
+            margin-top: 3rem;
+            margin-left: 3rem;
+            margin-bottom: 1.4rem; 
+            font-weight: 400; 
+            text-align: left; 
+        }
+
+        .modal .modal-header {
+            font-size: 2rem;
+            font-weight: 600;
+            margin: 1.4rem 0;
+            color: #000; 
+            text-align: center; 
+        }
+
+        .modal .input-label {margin-left: 3rem;}
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; 
+        }
+
+        .modal-buttons {
+            margin-top: 3rem;
+            text-align: right;
+        }
+
+        .modal-buttons .btn-submit {
+            padding: 10px;
+            background-color: #00854a;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .modal-buttons .btn-submitt:hover {
+				background-color: #005f37;
+			}
+
+        input[type="checkbox"] {
+				display: inline-block;
+				width: 16px;
+				height: 16px;
+				margin: 0;
+				clip: auto;
+				opacity: 1;
+				appearance: none;
+				position: relative;
+				border: 2px solid #d3d3d3;
+				border-radius: 4px;
+				}
+
+				input[type="checkbox"]:checked {
+				background-color: #00854a;
+				border-color: #00854a;
+				}
+
+				input[type="checkbox"]:checked::after {
+				content: "";
+				position: absolute;
+				top: 40%;
+				left: 50%;
+				width: 4px; 
+				height: 8px; 
+				border: solid #fff;
+				border-width: 0 2px 2px 0;
+				transform: translate(-50%, -50%) rotate(45deg);
+			}
+    </style>
+</head>
+
+
+<div id="confirmationModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            수신할 메일의 정보를 다시 확인해주세요
+        </div>
+        <p id="emailDetails"></p>
+        <label class="input-label"><input type="checkbox" id="savePresetCheckbox"> 템플릿으로 저장하기(현재 내용으로 템플릿이 업데이트 됩니다.)</label>
+        <div class="modal-buttons">
+            <button id="confirmSendBtn" class="btn-submit">전송</button>
+            <button id="cancelSendBtn" class="btn-submit">취소</button>
+        </div>
+    </div>
+</div>
+<body>
+    <div id="wrap">
+        <header>
+            <div class="user_info">
+                <h1>Email 보내기</h1>
+                <button id="logout" class="btn_logout" type="button"  onclick="window.history.back();">돌아가기</button>
+            </div>
+        </header>
+        
+        <main id="container" class="send-mail">
+            <div class="mail-form">
+                <div class="form-group">
+                    <label for="recipientEmails">수신자</label>
+                    <input type="text" id="recipientEmails" class="input-title" placeholder="이메일 주소를 콤마(,)로 구분하여 입력" />
+                </div>
+                
+                <div class="form-group">
+                    <label for="ccEmails">참조</label>
+                    <input type="text" id="ccEmails" class="input-title" placeholder="이메일 주소를 콤마(,)로 구분하여 입력 (선택사항)" />
+                </div>
+
+                <div class="form-group">
+                    <label for="subject">제목</label>
+                    <input type="text" id="subject" class="input-title" placeholder="이메일 제목 입력" />
+                </div>
+
+                <div class="form-group textarea">
+                    <label for="message">내용</label>
+                    <textarea id="message" placeholder="이메일 내용을 입력하세요"></textarea>
+                </div>
+                <div class="form-group-button">
+                    <button id="loadPresetBtn" class="btn-submit">템플릿 불러오기</button>
+                    <button id="savePresetBtn" class="btn-submit">템플릿 저장</button>
+                    <button id="sendEmailBtn" class="btn-submit">메일 보내기</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            firebase.auth().onAuthStateChanged(user => {
+                if (user) {
+                    const uid = user.uid;
+
+                    // 템플릿 불러오기
+                    document.getElementById('loadPresetBtn').addEventListener('click', () => {
+                        if (uid) {
+                            firebase.database().ref(`email/${uid}`).get().then(snapshot => {
+                                if (snapshot.exists()) {
+                                    const data = snapshot.val();
+                                    
+                                    const toEmail = data.to?.mail || "";
+                                    const ccEmail = data.cc?.mail || "";
+
+                                    document.getElementById('recipientEmails').value = toEmail;
+                                    document.getElementById('ccEmails').value = ccEmail;
+                                    document.getElementById('subject').value = data.subject || "";
+                                    document.getElementById('message').value = data.message || "";
+                                    alert('템플릿을 불러왔습니다.');
+                                } else {
+                                    alert('저장된 템플릿이 없습니다.');
+                                }
+                            }).catch(error => {
+                                console.error('템플릿 불러오기 오류:', error);
+                            });
+                        }
+                    });
+
+                    // 템플릿 저장
+                    document.getElementById('savePresetBtn').addEventListener('click', () => {
+                        const recipientEmails = document.getElementById('recipientEmails').value.split(",").map(email => email.trim()).filter(email => email);
+                        const ccEmails = document.getElementById('ccEmails').value.split(",").map(email => email.trim()).filter(email => email);
+                        const subject = document.getElementById('subject').value;
+                        const message = document.getElementById('message').value;
+
+                        savePreset(recipientEmails, ccEmails, subject, message);
+                    });
+                } else {
+                    console.error("사용자가 로그인되지 않았습니다.");
+                }
+
+                // (메일)전송 버튼 클릭
+                document.getElementById('confirmSendBtn').addEventListener('click', () => {
+                    const modal = document.getElementById('confirmationModal');
+
+                    // 템플릿 저장 체크 여부 확인
+                    if (document.getElementById('savePresetCheckbox').checked) {
+                        savePreset(recipientEmails, ccEmails, subject, message);
+                    }
+
+                    // 이메일 전송
+                    sendEmail(recipientEmails, subject, message, ccEmails);
+
+                    // 모달 닫기
+                    modal.style.display = 'none';
+                });
+
+                // 모달 취소 버튼 클릭 시 모달 닫기
+                document.getElementById('cancelSendBtn').addEventListener('click', () => {
+                    const modal = document.getElementById('confirmationModal');
+                    modal.style.display = 'none';
+                });
+
+                // 모달 외부 클릭 시 모달 닫기
+                window.addEventListener('click', (event) => {
+                    const modal = document.getElementById('confirmationModal');
+                    if (event.target == modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        // 모달에 들어갈 메일 요약 내용 저장
+        let recipientEmails = [];
+        let ccEmails = [];
+        let subject = '';
+        let message = '';
+
+        // 템플릿에 저장하기
+        function savePreset(toEmails, ccEmails, subject, message) {
+            if (firebase.auth().currentUser) {
+                const uid = firebase.auth().currentUser.uid;
+                const presetData = {
+                    to: { mail: toEmails.join(', ') },
+                    cc: { mail: ccEmails.join(', ') },
+                    subject: subject,
+                    message: message
+                };
+                firebase.database().ref(`email/${uid}`).set(presetData).then(() => {
+                    alert('템플릿이 저장되었습니다.');
+                }).catch(error => {
+                    console.error('템플릿 저장 오류:', error);
+                });
+            } else {
+                console.error("사용자가 로그인되지 않았습니다.");
+            }
+        }
+
+        //메일 보내기 눌렀을 때 모달 띄위기
+        document.getElementById('sendEmailBtn').addEventListener('click', () => {
+            recipientEmails = document.getElementById('recipientEmails').value.split(",").map(email => email.trim()).filter(email => email);
+            ccEmails = document.getElementById('ccEmails').value.split(",").map(email => email.trim()).filter(email => email);
+            subject = document.getElementById('subject').value;
+            message = document.getElementById('message').value;
+
+            // 이메일 상세 내용을 모달에 표시
+            const emailDetails = `
+                수신자: ${recipientEmails.length}명<br>
+                참조: ${ccEmails.length}명<br>
+                제목: ${subject}<br>
+                내용: ${message.substring(0, 100)}${message.length > 100 ? '...' : ''}
+            `;
+            document.getElementById('emailDetails').innerHTML = emailDetails;
+
+            // 모달 표시
+            const modal = document.getElementById('confirmationModal');
+            modal.style.display = 'block';
+        });
+
+        // 메일 보내기
+        function sendEmail(recipientEmails, subject, message, ccEmails) {
+            const accessToken = localStorage.getItem('gmailAccessToken');
+            if (!accessToken) {
+                alert('Access Token이 없습니다. 다시 로그인해주세요.');
+                return;
+            }
+
+            // 여러 개의 메일 주소를 분리(수신자와 참조 둘다)
+            const recipientEmailString = recipientEmails.join(", ");
+            const ccEmailString = ccEmails.join(", ");
+            const email = [
+                `To: ${recipientEmailString}`,
+                `Cc: ${ccEmailString}`,
+                `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`, 
+                'MIME-Version: 1.0',
+                'Content-Type: text/plain; charset="UTF-8"',
+                'Content-Transfer-Encoding: 7bit',
+                '',
+                message
+            ].join('\r\n');
+
+            const base64EncodedEmail = base64EncodeUnicode(email)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/, '');
+
+            fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ raw: base64EncodedEmail })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Email send error:', data.error);
+                    alert('메일 전송 실패. 자세한 내용은 콘솔을 확인하세요.');
+                } else {
+                    console.log('Email sent successfully:', data);
+                    alert('메일 전송 성공!');
+                    window.location.href = 'dashboard.html';
+                }
+            })
+            .catch(error => {
+                console.error('Error sending email:', error);
+                alert('메일 전송 중 오류 발생. 콘솔을 확인하세요.');
+            });
+        }
+
+        function base64EncodeUnicode(str) {
+            return btoa(unescape(encodeURIComponent(str)));
+        }
+    </script>
+</body>
+</html>

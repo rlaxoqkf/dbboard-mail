@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type="text/css" href="../css/common.css"?>
+<!-- Generator: Adobe Illustrator 16.0.3, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" id="statYellow" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" width="200" height="200" viewBox="0 0 100 100" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+<circle cx="50%" cy="50%" r="42" fill="none" stroke="#f2f4f6" stroke-width="15"></circle>
+<defs>
+<linearGradient id="linear-1" style="transform:rotate(80deg)">
+<stop offset="0%" stop-color="#ffde00"></stop>
+<stop offset="100%" stop-color="#ff9600"></stop>
+</linearGradient>
+</defs>
+<circle cx="50%" cy="50%" r="42" class="pie-circle" fill="none" stroke-width="15" stroke-dashoffset="264" stroke-dasharray="264" stroke-linecap="round" style="transform:rotate(-90deg);transform-origin: 50% 50%;" stroke="url(#linear-1)" data-angel="100"></circle>
+</svg>

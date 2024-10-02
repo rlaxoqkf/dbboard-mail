@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <link rel="manifest" href="manifest.json" />
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>DB Digital Dashboard</title>
+	<link rel="stylesheet" href="./css/common.css?v=20240930">
+
+	<!-- update the version number as needed -->
+	<script defer src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
+	<!-- include only the Firebase features as you need -->
+	<script defer src="/__/firebase/10.12.2/firebase-auth-compat.js"></script>
+	<script defer src="/__/firebase/10.12.2/firebase-database-compat.js"></script>
+	<script defer src="/__/firebase/10.12.2/firebase-analytics-compat.js"></script>
+	<script defer src="/__/firebase/10.12.2/firebase-messaging-compat.js"></script>
+
+	<!-- 
+  initialize the SDK after all desired features are loaded, set useEmulator to false
+  to avoid connecting the SDK to running emulators.
+-->
+	<script defer src="/__/firebase/init.js?useEmulator=true"></script>
+
+		<style>
+			/* 모달 숨김 설정 */
+			.modal {
+				display: none; /* 초기 상태에서 보이지 않도록 설정 */
+				position: fixed;
+				z-index: 1000;
+				left: 0;
+				top: 0;
+				width: 100%;
+				height: 100%;
+				background-color: rgba(0, 0, 0, 0.5);
+				justify-content: center;
+				align-items: center;
+			}
+
+			.modal-content {
+				background-color: #fff;
+				padding: 20px;
+				border-radius: 10px;
+				width: 300px;
+				box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+			}
+
+			.form-group {
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+				margin-bottom: 20px;
+			}
+
+			.form-group label {
+				display: flex; /* 플렉스박스로 정렬 */
+				align-items: center; /* 수직 중앙 정렬 */
+				gap: 8px; /* 체크박스와 텍스트 사이의 간격 */
+				font-size: 1.4rem; /* 텍스트 크기 조정 */
+				color: #333; /* 텍스트 색상 */
+			}
+
+			.btn-submit {
+				padding: 10px;
+				background-color: #00854a;
+				color: white;
+				border: none;
+				border-radius: 5px;
+				cursor: pointer;
+			}
+
+			.btn-submit:hover {
+				background-color: #005f37;
+			}
+
+			.modal-subject {
+				text-align: center; 
+				font-size: 1.8rem; 
+				font-weight: 700; 
+				margin-bottom: 1.5rem; 
+				color: #333; 
+			}
+
+			input[type="checkbox"] {
+				display: inline-block;
+				width: 16px;
+				height: 16px;
+				margin: 0;
+				clip: auto;
+				opacity: 1;
+				appearance: none;
+				position: relative;
+				border: 2px solid #d3d3d3;
+				border-radius: 4px;
+				}
+
+				input[type="checkbox"]:checked {
+				background-color: #00854a;
+				border-color: #00854a;
+				}
+
+				input[type="checkbox"]:checked::after {
+				content: "";
+				position: absolute;
+				top: 40%;
+				left: 50%;
+				width: 4px; /* 체크 표시의 너비 */
+				height: 8px; /* 체크 표시의 높이 */
+				border: solid #fff;
+				border-width: 0 2px 2px 0;
+				transform: translate(-50%, -50%) rotate(45deg);
+				}
+			
+		</style>
+
+</head>
+
+<body>
+	<div id="wrap">
+		<!-- header -->
+		<header>
+			<form id="frm" action="#">
+				<!-- 로그인 -->
+				<div class="user_info">
+					<h1 id="title">DB Digital Dashboard</h1>
+					<div class="user">
+						<div id="displayName" class="name"></div>
+						<div class="part">
+							<span id="displayPos"></span>
+							<span id="displayDept"></span>
+							<input type="hidden" id="name"></input>
+							<input type="hidden" id="email"></input>
+							<input type="hidden" id="uid"></input>
+						</div>
+					</div>
+					<button id="logout" class="btn_logout" type="button">로그아웃</button>
+					<button id="setpush" class="btn_logout" style="top:6rem;" type="button">알림 등록</button>
+				</div>
+				<!-- //로그인 -->
+
+					<!-- 모달 -->
+					<div id="notificationModal" class="modal">
+						<div class="modal-content">
+							<h2 class="modal-subject">알림 등록</h2>
+							<form id="notificationForm">
+								<div class="form-group">
+									<label>
+										<input type="checkbox" name="department" value="1000">
+										손보
+									</label>
+									<label>
+										<input type="checkbox" name="department" value="2000">
+										생명
+									</label>
+									<label>
+										<input type="checkbox" name="department" value="3000">
+										금투
+									</label>
+									<label>
+										<input type="checkbox" name="department" value="5000">
+										저축
+									</label>
+									<label>
+										<input type="checkbox" name="department" value="4000">
+										하이텍
+									</label>
+								</div>
+								<button type="button" class="btn-submit" onclick="requestPermission()">등록 신청</button>
+								<button type="button" class="btn-submit" onclick="closeModal()">닫기</button>
+							</form>
+						</div>
+					</div>
+					<!-- 모달 -->
+
+				<!-- 상태 -->
+				<div id="statBox" class="stat-box">
+					<!-- 신호 -->
+					<div id="summaryStat" class="summary-stat">
+						<ul>
+							<li id="n1000">
+								<span>손보</span>
+								<object id="1000" aria-hidden="true" type="image/svg+xml"
+									data="./images/img_stat_green.svg"></object>
+							</li>
+							<li id="n2000">
+								<span>생명</span>
+								<object id="2000" aria-hidden="true" type="image/svg+xml"
+									data="./images/img_stat_red.svg"></object>
+							</li>
+							<li id="n3000">
+								<span>금투</span>
+								<object id="3000" aria-hidden="true" type="image/svg+xml"
+									data="./images/img_stat_yellow.svg"></object>
+							</li>
+							<li id="n5000">
+								<span>저축</span>
+								<object id="5000" aria-hidden="true" type="image/svg+xml"
+									data="./images/img_stat_green.svg"></object>
+							</li>
+							<li id="n4000">
+								<span>하이텍</span>
+								<object id="4000" aria-hidden="true" type="image/svg+xml"
+									data="./images/img_stat_gray.svg"></object>
+							</li>
+						</ul>
+						<div class="btn-box">
+							<button class="btn-add" type="button" onclick="openAddStat();">보고내용 입력</button>
+							<button class="btn-add" type="button" onclick="moveSendMail();">이메일 보내기</button>
+						</div>
+					</div>
+					<!-- //신호 -->
+
+					<!-- 입력 -->
+					<div class="add-stat">
+						<div class="select-box">
+							<select id="dept" name="dept" class="stat">
+								<option value="0000">-선택-</option>
+								<option value="1000">손보</option>
+								<option value="2000">생명</option>
+								<option value="3000">금투</option>
+								<option value="5000">저축</option>
+								<option value="4000">하이텍</option>
+							</select>
+							<select id="stat" name="stat" class="stat">
+								<option value="none">-선택-</option>
+								<option value="green">초록</option>
+								<option value="yellow">노랑</option>
+								<option value="red">빨강</option>
+								<option value="gray">회색</option>
+							</select>
+								<label class="label">
+									<input type="checkbox" class="isPush" id="isPush">
+									알림여부
+									<span class="tooltip">
+										<img src="./icons/info_icons.png?v=20240930" alt="info">
+										<span class="tooltip-text">해당 부서를 알림 등록한 기기로 제목이 알림 전송됩니다. </span>
+									</span>
+								</label>
+							</div>
+							<div class="form-group">
+								<!-- <label for="subject">제목</label> -->
+								<input type="text" id="subject" name="subject" class="input-title" placeholder="제목">
+						</div>
+						<div class="textarea">
+								<textarea id="msg" placeholder="내용"></textarea>
+						</div>
+						<button id="submit" class="btn-submit" type="button">확인</button>
+						<button class="btn-submit" type="button" onclick="closeAddStat();">닫기</button>
+					</div>
+					<!-- //입력 -->
+				</div>
+				<!-- 상태 -->
+			</form>
+		</header>
+		<!-- //header -->
+		<!-- main -->
+		<main id="container" class="container">
+			<!-- 리스트 -->
+			<div class="list_msg">
+				<ul id="stats">
+				</ul>
+			</div>
+			<!-- //리스트 -->
+		</main>
+		<!-- main -->
+	</div>
+	<script>
+		//인트로 애니메이션
+		window.addEventListener("load", function () {
+			document.getElementById("summaryStat").classList.add("on");
+		});
+
+		//입력창 열기
+		function openAddStat() {
+			document.getElementById("statBox").classList.add("on");
+		}
+		//입력창 닫기
+		function closeAddStat() {
+			document.getElementById("statBox").classList.remove("on");
+		}
+
+		function moveSendMail() {
+			window.location.href = 'mail.html';
+		}
+	</script>
+
+		<script>
+			if ('serviceWorker' in navigator) {
+				navigator.serviceWorker.register('/firebase-messaging-sw.js')
+					.then(function (registration) {
+						console.log('Service Worker registered with scope:', registration.scope);
+					}).catch(function (error) {
+						console.error('Service Worker registration failed:', error);
+					});
+			}
+		</script>
+
+		<script>
+			var deptCheckedCount = 0;
+			function pushDeptsCheck() {
+				// 현재 로그인된 사용자의 UID 가져오기
+				const uid = document.getElementById('uid').value;
+				// 각 부서의 체크박스를 선택
+				const departments = document.querySelectorAll('input[name="department"]');
+				// 부서별로 체크박스의 상태를 설정
+				departments.forEach(dept => {
+					const deptId = dept.value; // 부서 ID
+					// Firebase DB에서 해당 부서에 UID가 존재하는지 확인
+					firebase.database().ref(`noti/${deptId}/${uid}`).get().then(snapshot => {
+						if (snapshot.exists()) {
+							// UID가 존재하면 체크박스를 체크 상태로 설정
+							dept.checked = true;
+							hasChecked = true;
+						} else {
+							// UID가 존재하지 않으면 체크박스를 체크 해제
+							dept.checked = false;
+							deptCheckedCount++;
+							if (deptCheckedCount == departments.length){
+								//데이터가 없으면 안내 메시지와 모달 표시
+								if (!("Notification" in window)) {
+									alert('알림이 등록된 부서가 없습니다. iOS의 경우, 홈 화면에 추가 후 알림 등록이 가능합니다.');
+								} else {
+									alert('알림이 등록된 부서가 없습니다. 알림을 받으려면 알림 등록 버튼을 눌러 등록을 진행해주세요.');
+								}
+							}
+						}
+					}).catch(error => {
+						console.error('pushDeptsCheck Error:', error);
+					});
+				});
+			}
+
+			function openModal() {
+				document.getElementById('notificationModal').style.display = 'flex';
+			}
+
+			// 모달 닫기
+			function closeModal() {
+				document.getElementById('notificationModal').style.display = 'none';
+			}
+
+			// 알림 등록 버튼에 모달 열기 이벤트 추가
+			document.getElementById('setpush').addEventListener('click', openModal);
+		</script>
+
+
+	<script>
+		var needsRegisterWithToken = null;
+		document.addEventListener('DOMContentLoaded', function () {
+
+			const emailVaildRegExp = /.*.db(fis|inc|group).co.kr$/i;
+			firebase.auth().onAuthStateChanged(user => {
+				if (user) {
+					// User is signed in, see docs for a list of available properties
+					// https://firebase.google.com/docs/reference/js/auth.user
+
+					if (!user.email.match(emailVaildRegExp)) {
+						alert('DB 관련 구글 메일로만 로그인이 가능합니다.');
+						signOut();
+					} else {
+						signIn(user);
+					}
+					//writeDeptStat('1000', 'OK', user.email, user.displayName, uid, 'TEST OK!!');
+					// ...
+				} else {
+					signOut();
+				}
+			});
+
+			// Initialize Firebase Cloud Messaging and get a reference to the service
+			//const messaging = firebase.messaging();
+
+			// Add the public key generated from the console here.
+			//firebase.messaging().getToken(messaging, {
+			//	vapidKey: "BFmunl_Ohkyt21n-TC9fTxtsLQtwhZbjBAkevk6rTkS_Oo5Q6ek7U7xJH9iW8QNthQ3toHm1bF8A4nqTvs9Ty_A"
+			//});
+			// Get registration token. Initially this makes a network call, once retrieved
+			// subsequent calls to getToken will return from cache.
+
+			// firebase.messaging().getToken({
+			// 	vapidKey: 'BFmunl_Ohkyt21n-TC9fTxtsLQtwhZbjBAkevk6rTkS_Oo5Q6ek7U7xJH9iW8QNthQ3toHm1bF8A4nqTvs9Ty_A'
+			// }).then((currentToken) => {
+			// 	if (currentToken) {
+			// 		registerToken(currentToken);
+			// 	} else {
+			// 		// Show permission request UI
+			// 		console.log('No registration token available. Request permission to generate one.');
+			// 		// ...
+			// 	}
+			// }).catch((err) => {
+			// 	console.log('An error occurred while retrieving token. ', err);
+			// 	// ...
+			// });
+
+			// Handle incoming messages. Called when:
+			// - a message is received while the app has focus
+			// - the user clicks on an app notification created by a service worker
+			//   `messaging.onBackgroundMessage` handler.
+			firebase.messaging().onMessage((payload) => {
+				console.log('Message received. ', payload);
+				alert(payload.notification.title + "\n" + payload.notification.body);
+			});
+
+			//firebase.database().ref('/path/to/ref').on('value', snapshot => { });
+			//const database = firebase.database();
+			//const dbRef = firebase.database().ref("stats").orderByChild('time');
+			const dbRef = firebase.database().ref("stats").limitToLast(50);
+			/*
+				  dbRef.get().then((snapshot) => {
+					if (snapshot.exists()) {
+					  console.log(snapshot.val());
+					} else {
+					  console.log("No data available");
+					}
+				  }).catch((error) => {
+					console.error(error);
+				  });
+			*/
+			dbRef.on('child_added', (data) => {
+				//console.log(data.val());
+				addStat(data.val());
+			});
+			// firebase.firestore().doc('/foo/bar').get().then(() => { });
+			// firebase.functions().httpsCallable('yourFunction')().then(() => { });
+			// firebase.messaging().requestPermission().then(() => { });
+			// firebase.storage().ref('/path/to/ref').getDownloadURL().then(() => { });
+			firebase.analytics(); // call to activate
+			// firebase.analytics().logEvent('tutorial_completed');
+			// firebase.performance(); // call to activate
+			//
+			// // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+
+			try {
+				let app = firebase.app();
+				let features = [
+					'auth',
+					'database',
+					'firestore',
+					'functions',
+					'messaging',
+					'storage',
+					'analytics',
+					'remoteConfig',
+					'performance',
+				].filter(feature => typeof app[feature] === 'function');
+				//loadEl.textContent = `Firebase SDK loaded with ${features.join(', ')}.`;
+			} catch (e) {
+				console.error(e);
+				//loadEl.textContent = 'Error loading the Firebase SDK, check the console.';
+			}
+
+			document.getElementById('logout').addEventListener('click', () => {
+				signOut();
+			});
+
+			//document.getElementById('setpush').addEventListener('click', () => {
+				//requestPermission();
+				//openModal();
+			//});
+
+			document.getElementById('submit').addEventListener('click', () => {
+				//validation
+				const stat = document.getElementById('stat').value;
+				if (!stat || stat == 'none') {
+					alert('상태를 선택해주세요.');
+					return;
+				}
+				const dept = document.getElementById('dept').value;
+				if (!(dept && dept.match(/[1-5]000/))) {
+					alert('대상 부서를 선택해주세요.');
+					return;
+				}
+				writeDeptStat(dept,
+					stat,
+					document.getElementById('email').value,
+					document.getElementById('name').value,
+					document.getElementById('uid').value,
+					document.getElementById('msg').value,
+					document.getElementById('subject').value,
+					document.getElementById('isPush').checked
+				);
+				closeAddStat();
+			});
+
+			document.getElementById('n1000').addEventListener('click', () => {
+				filterList('1000');
+			});
+
+			document.getElementById('n2000').addEventListener('click', () => {
+				filterList('2000');
+			});
+
+			document.getElementById('n3000').addEventListener('click', () => {
+				filterList('3000');
+			});
+
+			document.getElementById('n4000').addEventListener('click', () => {
+				filterList('4000');
+			});
+
+			document.getElementById('n5000').addEventListener('click', () => {
+				filterList('5000');
+			});
+
+			document.getElementById('title').addEventListener('click', () => {
+				filterList('');
+			});
+
+		});
+			// 알림 등록 로직
+			function registerNotification(token) {
+				const uid = document.getElementById('uid').value;
+				const departments = document.querySelectorAll('input[name="department"]');
+
+				// `token`이 올바르게 전달되었는지 확인
+				if (!token || typeof token === 'undefined') {
+					console.error('Token is undefined or invalid:', token);
+					alert('토큰이 유효하지 않습니다. 다시 시도해 주세요.');
+					return;
+				}
+
+				const iphone = navigator.userAgent.toLowerCase().indexOf('iphone') >= 0 //true : iPhone
+
+				let anyChecked = false; // 알림 등록 여부 확인 변수
+
+				// 모든 부서에 대해 토큰 업데이트 또는 null 설정
+				departments.forEach(dept => {
+					const deptId = dept.value;
+					const isChecked = dept.checked; // 체크 여부 확인
+					const path = `noti/${deptId}/${uid}`;
+
+
+					// `uid`와 `deptId`가 유효한지 확인
+					if (!uid || typeof uid === 'undefined' || !deptId || typeof deptId === 'undefined') {
+						console.error('Invalid UID or Department ID:', { uid, deptId });
+						return;
+					}
+
+					// if (isChecked) {
+					// 	anyChecked = true; // 하나라도 체크되면 true로 변경
+					// }
+
+					// 선택된 부서에는 토큰 저장, 선택되지 않은 부서는 null로 설정
+					//const tokenValue = isChecked ? token : null;
+					firebase.database().ref(path).update({ token: isChecked ? token : null, iphone: isChecked ? iphone : null }) // update 메서드를 사용하여 token 값만 수정
+						//.then(() => {
+						//	console.log(`${deptId}에 대한 토큰이 ${tokenValue ? '저장되었습니다.' : 'null로 설정되었습니다.'}`);
+						//})
+						.catch(err => {
+							console.error(`토큰 업데이트 중 오류 발생: ${err}`);
+						});
+				});
+
+				// // 만약 아무 부서도 체크되지 않았다면 push에서 uid 데이터 삭제
+				// if (!anyChecked) {
+				// 	firebase.database().ref(`push/${uid}`).remove()
+				// 	.then(() => {
+				// 		console.log('알림이 등록되지 않았으므로 push에서 uid 데이터를 삭제했습니다.');
+				// 	})
+				// 	.catch(err => {
+				// 		console.error('push 데이터 삭제 중 오류 발생: ', err);
+				// 	});
+				// }
+
+				closeModal();
+			}
+
+		function registerToken(currentToken){
+			if (currentToken) {
+				console.log('currentToken:', currentToken);
+				// Send the token to your server and update the UI if necessary
+				const time = Date.now();
+				const uid = document.getElementById('uid').value;
+				const name = document.getElementById('name').value;
+				if(uid){
+					firebase.database().ref(`push/${uid}`).set({
+						time: time,
+						token: currentToken,
+						name: name
+					}).then((currentToken) => {
+						alert('사용자 등록이 되었습니다: ' + name);
+					}).catch((err) => {
+						console.log('An error occurred while add push list. ', err);
+						// ...
+					});
+						registerNotification(currentToken);
+				}else{
+					//console.error('uid:', uid);
+					needsRegisterWithToken = currentToken;
+				}
+			} else {
+				// Show permission request UI
+				console.log('No registration token available. Request permission to generate one.');
+				// ...
+			}
+		}
+
+		function requestPermission() {
+			console.log('Requesting permission...');
+			if (!("Notification" in window)) {
+				alert('iOS의 경우, 홈 화면에 추가 후 알림 등록이 가능합니다.');
+				return;
+			}
+			Notification.requestPermission().then((permission) => {
+				if (permission === 'granted') {
+					console.log('Notification permission granted!');
+
+					// Get registration token. Initially this makes a network call, once retrieved
+					// subsequent calls to getToken will return from cache.
+					firebase.messaging().getToken({
+						vapidKey: 'BKxvnPi49pfuBWPqxBP1bfOuhtBz_ghjgEde-Tq3IqgOYm1s0t5eaB96bHIAfWKRJMnuOdghdB0i6DhYK_T6shI'
+					}).then((currentToken) => {
+						registerToken(currentToken);
+					}).catch((err) => {
+						console.log('An error occurred while retrieving token. ', err);
+						// ...
+					});
+				} else {
+					console.error('Notification permission not granted.');
+					alert('Notification permission:'+permission);
+				}
+			}).catch((err) => {
+				console.log('An error occurred while request permission. ', err);
+				alert('An error occurred while request permission. ' + err);
+			});
+		}
+
+		function filterList(dept) {
+			if (!dept || dept == '') {
+				document.querySelectorAll("main li").forEach(li => {
+					li.style.display = '';
+				});
+				return;
+			}
+			//console.log(document.querySelectorAll("main li"));
+			//console.log(document.getElementsByName(dept));
+			document.querySelectorAll("main li").forEach(li => {
+				li.style.display = 'none';
+			});
+			document.getElementsByName(dept).forEach(li => {
+				li.style.display = '';
+			});
+		}
+
+		function signIn(user) {
+			document.getElementById('uid').value = user.uid;
+			document.getElementById('email').value = user.email;
+			document.getElementById('name').value = user.displayName;
+			//console.log(user.displayName);
+			const userStrArr = user.displayName.split(/[ \/]+/);
+			//console.log(userStrArr);
+			document.getElementById('displayName').innerText = userStrArr[0];
+			document.getElementById('displayPos').innerText = userStrArr[1];
+			document.getElementById('displayDept').innerText = userStrArr[2];
+			//document.getElementById('user').innerText = `${user.displayName} (${user.email})`;
+			//document.getElementById('user-email').innerText = `Email: ${user.email}`;
+			//document.getElementById('user-details').style.display = 'block';
+			//document.getElementById('login').style.display = 'none';
+			//document.getElementById('logout').style.display = 'block';
+			//document.getElementById('stats').style.display = 'block';
+			//document.getElementById('add-stat').style.display = 'block';
+
+			//const uid = user.uid;
+			//console.log('uid:', uid); // 로그로 uid 값 확인
+			//firebase.database().ref(`push/${uid}`).get().then(snapshot => {
+			//	if (!snapshot.exists()) {
+			//		// uid 데이터가 없으면 안내 메시지와 모달 표시
+			//		alert('알림이 등록된 부서가 없습니다. 새 글이 올라오면 알림을 받기 위해 등록을 진행해주세요.');
+			//		openModal(); // 알림 등록 모달 열기
+			//	}
+			//}).catch(err => {
+			//	console.error('push 데이터 확인 중 오류 발생:', err);
+			//});
+
+			//if(needsRegisterWithToken){
+			//	registerToken(needsRegisterWithToken);
+			//}
+			pushDeptsCheck();
+		}
+
+		function signOut() {
+			firebase.auth().signOut().then(() => {
+				window.location.href = 'index.html';
+			}).catch((error) => {
+				console.error(error);
+			});
+		}
+
+		function addStat(data) {
+			//console.log(data['time']);
+			let imgName = 'green';
+			if (data['stat'] == 'Warn') {
+				imgName = 'yellow';
+			} else if (data['stat'] == 'Fail') {
+				imgName = 'red';
+			} else if (data['stat'] == 'yellow') {
+				imgName = 'yellow';
+			} else if (data['stat'] == 'red') {
+				imgName = 'red';
+			} else if (data['stat'] == 'gray') {
+				imgName = 'gray';
+			}
+			let imgFullPathAndName = "./images/img_stat_" + imgName + ".svg";
+			//document.getElementById(data['dept']).style.backgroundImage = `url('${imgName}')`;
+			document.getElementById(data['dept']).setAttribute('data', imgFullPathAndName);
+
+			let deptName = '';
+			if (data['dept'] == '1000') {
+				deptName = '손보정보서비스팀';
+			} else if (data['dept'] == '2000') {
+				deptName = '생명정보서비스팀';
+			} else if (data['dept'] == '3000') {
+				deptName = '금융정보서비스팀';
+			} else if (data['dept'] == '4000') {
+				deptName = '하이텍정보서비스팀';
+			} else if (data['dept'] == '5000') {
+				deptName = '저축정보서비스팀';
+			}
+			const dateStr = dateFormat(new Date(data['time']));
+			//const sub = data['subject']?.replaceAll('\n', ' ');
+			let sub = '';
+			if (data['subject']) {
+				sub = ' - ' + data['subject'].replaceAll('\n', ' ');
+			}
+			const msg = data['message'].replaceAll('\n', '<br/>');
+
+			let html = `<li id="${data['time']}" name="${data['dept']}">\r\n`;
+					html += `<div class="stat"><i class="${imgName}"></i> ${deptName} <span class="sub-msg">${sub}</span></div>\r\n`; // sub를 span으로 감싸고 클래스 추가
+					html += `<div class="msg">${msg}</div>\r\n`;
+					html += `<div class="user"><span>${data['name']}</span></div>\r\n`;
+					html += `<div class="date">${dateStr}</div>\r\n`;
+					html += `</li>\r\n`;
+
+			document.getElementById('stats').innerHTML = html + document.getElementById('stats').innerHTML;
+		}
+
+			function writeDeptStat(dept, stat, email, name, uid, message, subject, isPush) {
+			const time = Date.now();
+			firebase.database().ref(`stats/${time}`).set({
+				time: time,
+				dept: dept,
+				stat: stat,
+				email: email,
+				name: name,
+				uid: uid,
+				message: message,
+				subject: subject,
+				isPush: isPush
+			});
+			alert('입력되었습니다.');
+		}
+
+		function dateFormat(date) {
+			return date.getFullYear() +
+				'-' + ((date.getMonth() + 1) <= 9 ? "0" + (date.getMonth() + 1) : (date.getMonth() + 1)) +
+				'-' + ((date.getDate()) <= 9 ? "0" + (date.getDate()) : (date.getDate())) +
+				' ' + ((date.getHours()) <= 9 ? "0" + (date.getHours()) : (date.getHours())) +
+				':' + ((date.getMinutes()) <= 9 ? "0" + (date.getMinutes()) : (date.getMinutes())) +
+				':' + ((date.getSeconds()) <= 9 ? "0" + (date.getSeconds()) : (date.getSeconds()))
+				;
+		}
+
+	</script>
+
+
+</body>
+
+</html>
